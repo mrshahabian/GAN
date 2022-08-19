@@ -7,7 +7,7 @@ from torchvision.utils import make_grid
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 
-from generator import get_generator_block, Generator
+from generator import get_generator_block, Generator , get_noise
 
 torch.manual_seed(0)  # Set for testing purposes, please do not change!
 
@@ -69,3 +69,18 @@ test_generator(5, 10, 20)
 test_generator(20, 8, 24)
 print("Generator class Success!")
 
+
+# Verify the noise vector function
+def test_get_noise(n_samples, z_dim, device='cpu'):
+    noise = get_noise(n_samples, z_dim, device)
+
+    # Make sure a normal distribution was used
+    assert tuple(noise.shape) == (n_samples, z_dim)
+    assert torch.abs(noise.std() - torch.tensor(1.0)) < 0.01
+    assert str(noise.device).startswith(device)
+
+
+test_get_noise(1000, 100, 'cpu')
+if torch.cuda.is_available():
+    test_get_noise(1000, 32, 'cuda')
+print("Noise Success!")

@@ -1,5 +1,7 @@
 import torch
 from torch import nn
+
+
 # UNQ_C1 (UNIQUE CELL IDENTIFIER, DO NOT EDIT)
 # GRADED FUNCTION: get_generator_block
 def get_generator_block(input_dim, output_dim):
@@ -68,3 +70,21 @@ class Generator(nn.Module):
             the sequential model
         '''
         return self.gen
+
+
+# UNQ_C3 (UNIQUE CELL IDENTIFIER, DO NOT EDIT)
+# GRADED FUNCTION: get_noise
+def get_noise(n_samples, z_dim, device='cpu'):
+    '''
+    Function for creating noise vectors: Given the dimensions (n_samples, z_dim),
+    creates a tensor of that shape filled with random numbers from the normal distribution.
+    Parameters:
+        n_samples: the number of samples to generate, a scalar
+        z_dim: the dimension of the noise vector, a scalar
+        device: the device type
+    '''
+    # NOTE: To use this on GPU with device='cuda', make sure to pass the device
+    # argument to the function you use to generate the noise.
+    #### START CODE HERE ####
+    return torch.randn(n_samples, z_dim, device=device)
+    #### END CODE HERE ####
