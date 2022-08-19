@@ -3,7 +3,8 @@ from torch import nn
 
 from generator import get_generator_block, Generator, get_noise
 from discriminator import get_discriminator_block, Discriminator
-
+from params import *
+from train import get_disc_loss, get_gen_loss
 # Verify the generator block function
 def test_gen_block(in_features, out_features, num_test=1000):
     block = get_generator_block(in_features, out_features)
@@ -81,3 +82,119 @@ def test_discriminator(z_dim, hidden_dim, num_test=100):
     # Don't use a block
     assert not isinstance(disc[-1], nn.Sequential)
 
+
+def test_disc_reasonable(num_images=10):
+    # Don't use explicit casts to cuda - use the device argument
+    import inspect, re
+    lines = inspect.getsource(get_disc_loss)
+    assert (re.search(r"to\(.cuda.\)", lines)) is None
+    assert (re.search(r"\.cuda\(\)", lines)) is None
+
+    z_dim = 64
+    gen = torch.zeros_like
+    disc = lambda x: x.mean(1)[:, None]
+    criterion = torch.mul  # Multiply
+    real = torch.ones(num_images, z_dim)
+    disc_loss = get_disc_loss(gen, disc, criterion, real, num_images, z_dim, 'cpu')
+    assert torch.all(torch.abs(disc_loss.mean() - 0.5) < 1e-5)
+
+    gen = torch.ones_like
+    criterion = torch.mul  # Multiply
+    real = torch.zeros(num_images, z_dim)
+    assert torch.all(torch.abs(get_disc_loss(gen, disc, criterion, real, num_images, z_dim, 'cpu')) < 1e-5)
+
+    gen = lambda x: torch.ones(num_images, 10)
+    disc = lambda x: x.mean(1)[:, None] + 10
+    criterion = torch.mul  # Multiply
+    real = torch.zeros(num_images, 10)
+    assert torch.all(torch.abs(get_disc_loss(gen, disc, criterion, real, num_images, z_dim, 'cpu').mean() - 5) < 1e-5)
+
+    gen = torch.ones_like
+    disc = nn.Linear(64, 1, bias=False)
+    real = torch.ones(num_images, 64) * 0.5
+    disc.weight.data = torch.ones_like(disc.weight.data) * 0.5
+    disc_opt = torch.optim.Adam(disc.parameters(), lr=lr)
+    criterion = lambda x, y: torch.sum(x) + torch.sum(y)
+    disc_loss = get_disc_loss(gen, disc, criterion, real, num_images, z_dim, 'cpu').mean()
+    disc_loss.backward()
+    assert torch.isclose(torch.abs(disc.weight.grad.mean() - 11.25), torch.tensor(3.75))
+
+
+def test_disc_loss(max_tests=10):
+    z_dim = 64
+    gen = Generator(z_dim).to(device)
+    gen_opt = torch.optim.Adam(gen.parameters(), lr=lr)
+    disc = Discriminator().to(device)
+    disc_opt = torch.optim.Adam(disc.parameters(), lr=lr)
+    num_steps = 0
+    for real, _ in dataloader:
+        cur_batch_size = len(real)
+        real = real.view(cur_batch_size, -1).to(device)
+
+        ### Update discriminator ###
+        # Zero out the gradient before backpropagation
+        disc_opt.zero_grad()
+
+        # Calculate discriminator loss
+        disc_loss = get_disc_loss(gen, disc, criterion, real, cur_batch_size, z_dim, device)
+        assert (disc_loss - 0.68).abs() < 0.05
+
+        # Update gradients
+        disc_loss.backward(retain_graph=True)
+
+        # Check that they detached correctly
+        assert gen.gen[0][0].weight.grad is None
+
+        # Update optimizer
+        old_weight = disc.disc[0][0].weight.data.clone()
+        disc_opt.step()
+        new_weight = disc.disc[0][0].weight.data
+
+        # Check that some discriminator weights changed
+        assert not torch.all(torch.eq(old_weight, new_weight))
+        num_steps += 1
+        if num_steps >= max_tests:
+            break
+
+
+def test_gen_reasonable(num_images=10):
+    # Don't use explicit casts to cuda - use the device argument
+    import inspect, re
+    lines = inspect.getsource(get_gen_loss)
+    assert (re.search(r"to\(.cuda.\)", lines)) is None
+    assert (re.search(r"\.cuda\(\)", lines)) is None
+
+    z_dim = 64
+    gen = torch.zeros_like
+    disc = nn.Identity()
+    criterion = torch.mul  # Multiply
+    gen_loss_tensor = get_gen_loss(gen, disc, criterion, num_images, z_dim, 'cpu')
+    assert torch.all(torch.abs(gen_loss_tensor) < 1e-5)
+    # Verify shape. Related to gen_noise parametrization
+    assert tuple(gen_loss_tensor.shape) == (num_images, z_dim)
+
+    gen = torch.ones_like
+    disc = nn.Identity()
+    criterion = torch.mul  # Multiply
+    gen_loss_tensor = get_gen_loss(gen, disc, criterion, num_images, z_dim, 'cpu')
+    assert torch.all(torch.abs(gen_loss_tensor - 1) < 1e-5)
+    # Verify shape. Related to gen_noise parametrization
+    assert tuple(gen_loss_tensor.shape) == (num_images, z_dim)
+
+
+def test_gen_loss(num_images):
+    z_dim = 64
+    gen = Generator(z_dim).to(device)
+    gen_opt = torch.optim.Adam(gen.parameters(), lr=lr)
+    disc = Discriminator().to(device)
+    disc_opt = torch.optim.Adam(disc.parameters(), lr=lr)
+
+    gen_loss = get_gen_loss(gen, disc, criterion, num_images, z_dim, device)
+
+    # Check that the loss is reasonable
+    assert (gen_loss - 0.7).abs() < 0.1
+    gen_loss.backward()
+    old_weight = gen.gen[0][0].weight.clone()
+    gen_opt.step()
+    new_weight = gen.gen[0][0].weight
+    assert not torch.all(torch.eq(old_weight, new_weight))

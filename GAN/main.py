@@ -11,6 +11,7 @@ from generator import get_generator_block, Generator, get_noise
 from discriminator import get_discriminator_block, Discriminator
 from test import test_gen_block, test_generator, test_get_noise
 from test import test_disc_block, test_discriminator
+from test import test_disc_reasonable, test_disc_loss, test_gen_loss, test_gen_reasonable
 torch.manual_seed(0)  # Set for testing purposes, please do not change!
 
 
@@ -51,3 +52,11 @@ print("Discriminator Success!")
 test_discriminator(5, 10)
 test_discriminator(20, 8)
 print("Discriminator class Success!")
+
+test_disc_reasonable()
+test_disc_loss()
+print("train discriminator Success!")
+
+test_gen_reasonable(10)
+test_gen_loss(18)
+print("train generator Success!")
