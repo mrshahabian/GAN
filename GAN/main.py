@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 
 from generator import get_generator_block, Generator, get_noise
-from discriminator import get_discriminator_block
+from discriminator import get_discriminator_block, Discriminator
 
 torch.manual_seed(0)  # Set for testing purposes, please do not change!
 
@@ -109,3 +109,24 @@ def test_disc_block(in_features, out_features, num_test=10000):
 test_disc_block(25, 12)
 test_disc_block(15, 28)
 print("Discriminator Success!")
+
+
+# Verify the discriminator class
+def test_discriminator(z_dim, hidden_dim, num_test=100):
+    disc = Discriminator(z_dim, hidden_dim).get_disc()
+    print(disc)
+    # Check there are three parts
+    assert len(disc) == 4
+
+    # Check the linear layer is correct
+    test_input = torch.randn(num_test, z_dim)
+    test_output = disc(test_input)
+    assert tuple(test_output.shape) == (num_test, 1)
+
+    # Don't use a block
+    assert not isinstance(disc[-1], nn.Sequential)
+
+
+test_discriminator(5, 10)
+test_discriminator(20, 8)
+print("Discriminator class Success!")
