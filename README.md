@@ -1,2 +1,2 @@
-# ML
-Development of ML models
+# GAN
+Development of Generative adversarial models
