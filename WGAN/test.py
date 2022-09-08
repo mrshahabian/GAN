@@ -2,6 +2,7 @@ from params import *
 import torch
 from gradientPenalty import get_gradient, gradient_penalty
 from train import crit
+from loss import get_gen_loss, get_crit_loss
 
 
 # UNIT TEST
@@ -38,4 +39,27 @@ def test_gradient_penalty(image_shape):
     assert torch.abs(random_gradient_penalty - 1) < 0.1
 
 test_gradient_penalty((256, 1, 28, 28))
+print("Success!")
+
+# UNIT TEST
+assert torch.isclose(
+    get_gen_loss(torch.tensor(1.)), torch.tensor(-1.0)
+)
+
+assert torch.isclose(
+    get_gen_loss(torch.rand(10000)), torch.tensor(-0.5), 0.05
+)
+
+print("Success!")
+
+# UNIT TEST
+assert torch.isclose(
+    get_crit_loss(torch.tensor(1.), torch.tensor(2.), torch.tensor(3.), 0.1),
+    torch.tensor(-0.7)
+)
+assert torch.isclose(
+    get_crit_loss(torch.tensor(20.), torch.tensor(-20.), torch.tensor(2.), 10),
+    torch.tensor(60.)
+)
+
 print("Success!")
