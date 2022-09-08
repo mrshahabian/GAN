@@ -1,2 +1,3 @@
 # GAN
-Development of Generative adversarial models
+Development of Generative adversarial Network
+
